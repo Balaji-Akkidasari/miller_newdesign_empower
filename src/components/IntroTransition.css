@@ -1,0 +1,497 @@
+/* ==========================================================================
+   EmpowerED Careers — 3D intro transition
+   Brand tokens sampled directly from the logo artwork.
+   ========================================================================== */
+
+:root {
+  --eg-green: #085a16;
+  --eg-green-deep: #04310c;
+  --eg-gold: #eea50d;
+  --eg-gold-deep: #b87a05;
+  --eg-ink: #0b2415;
+  --eg-paper: #ffffff;
+
+  --eg-intro-z: 9999;
+  --eg-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --eg-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+/* Locks the page while the intro owns the screen. */
+body.eg-intro-locked {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* --------------------------------------------------------------------------
+   Stage — the perspective root. Everything 3D happens inside this.
+   -------------------------------------------------------------------------- */
+.eg-intro {
+  position: fixed;
+  inset: 0;
+  z-index: var(--eg-intro-z);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #000;
+  perspective: 1400px;
+  perspective-origin: 50% 48%;
+  transition: background-color 600ms ease;
+}
+
+.eg-intro[data-phase='shatter'],
+.eg-intro[data-phase='done'] {
+  background: var(--eg-paper);
+}
+
+/* Once the glass exists it IS the picture, so the backdrop must clear out —
+   otherwise the site can't be seen through the gaps between the shards. */
+.eg-intro[data-glass='true'] {
+  background: transparent;
+  /* Instant, not the inherited 600ms fade — the site has to be visible through
+     the cracks on the very first frame of the break, or the shards look like
+     they're falling against a black wall. */
+  transition: none;
+}
+
+.eg-intro[data-phase='done'],
+.eg-intro[data-glass='true'] {
+  pointer-events: none;
+}
+
+/* The plane that flies toward the viewer at handoff. */
+.eg-intro__plane {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+  transform: translateZ(0);
+}
+
+/* No glass (reduced motion, autoplay fallback, unreadable frame): the film
+   simply departs into depth and the site fades up behind it. */
+.eg-intro[data-phase='shatter'][data-glass='false'] .eg-intro__plane {
+  animation: eg-plane-depart 620ms var(--eg-ease-in) forwards;
+}
+
+/* With glass, the live video is swapped for its frozen frame instantly —
+   showing both at once would double-expose the picture. */
+.eg-intro[data-glass='true'] .eg-intro__plane {
+  opacity: 0;
+}
+
+@keyframes eg-plane-depart {
+  0% {
+    transform: translateZ(0) rotateX(0deg);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    transform: translateZ(320px) rotateX(5deg);
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Video layer
+   -------------------------------------------------------------------------- */
+.eg-intro__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+/* Vignette keeps the smoky frame edges from reading as a hard letterbox. */
+.eg-intro__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    transparent 45%,
+    rgba(0, 0, 0, 0.42) 100%
+  );
+  opacity: 1;
+  transition: opacity 500ms ease;
+}
+
+.eg-intro[data-phase='shatter'] .eg-intro__vignette,
+.eg-intro[data-phase='done'] .eg-intro__vignette {
+  opacity: 0;
+}
+
+/* ==========================================================================
+   Broken glass — the final frame of the film, cut into irregular shards that
+   fly apart and fall, revealing the live site behind them.
+   ========================================================================== */
+.eg-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.eg-glass__shard {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+  animation: eg-shard-fly 1150ms cubic-bezier(0.2, 0.55, 0.25, 1) both;
+  /* A hairline lip along each cut so the breaks read as glass edges. */
+  filter: drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.75));
+}
+
+@keyframes eg-shard-fly {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  10% {
+    transform: translate3d(calc(var(--dx) * 0.04), calc(var(--dy) * 0.02), 0)
+      rotate(calc(var(--rot) * 0.06)) scale(1.012);
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--rot)) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* The impact: a hard white bloom on the frame at the instant it breaks. */
+.eg-glass__flash {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 90px 44px rgba(255, 255, 255, 0.9),
+    0 0 200px 110px rgba(238, 165, 13, 0.5);
+  transform: translate(-50%, -50%) scale(0.4);
+  opacity: 0;
+  animation: eg-glass-flash 520ms ease-out both;
+}
+
+@keyframes eg-glass-flash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.6);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Skip control
+   -------------------------------------------------------------------------- */
+.eg-intro__skip {
+  position: absolute;
+  right: clamp(16px, 4vw, 40px);
+  bottom: clamp(16px, 4vw, 40px);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  padding: 0.7em 1.15em;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.9);
+  font: 500 0.78rem/1 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  animation: eg-skip-in 500ms var(--eg-ease-out) 1.4s forwards;
+  transition: border-color 200ms ease, background-color 200ms ease, color 200ms ease;
+}
+
+.eg-intro__skip:hover {
+  border-color: var(--eg-gold);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+}
+
+.eg-intro__skip:focus-visible {
+  outline: 2px solid var(--eg-gold);
+  outline-offset: 3px;
+}
+
+@keyframes eg-skip-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Progress hairline — reads as a loading bar, doubles as intro runtime. */
+.eg-intro__progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.eg-intro__progress i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--eg-green), var(--eg-gold));
+  transition: width 200ms linear;
+}
+
+/* ==========================================================================
+   CSS-3D fallback — used when the video can't autoplay, fails to load, or
+   the visitor is on a metered connection. The two halves of the mark fly in
+   from opposite sides and lock together: the handshake, rebuilt in CSS.
+   ========================================================================== */
+.eg-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 45%, #123018 0%, #050b07 62%, #000 100%);
+  transform-style: preserve-3d;
+}
+
+.eg-fallback__mark {
+  position: relative;
+  width: min(30vw, 230px);
+  aspect-ratio: 356 / 294;
+  transform-style: preserve-3d;
+}
+
+.eg-fallback__half {
+  position: absolute;
+  inset: 0;
+  background-image: var(--eg-mark-src);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  will-change: transform, opacity;
+}
+
+.eg-fallback__half--l {
+  clip-path: inset(0 50% 0 0);
+  animation: eg-half-left 1500ms var(--eg-ease-out) 200ms both;
+}
+
+.eg-fallback__half--r {
+  clip-path: inset(0 0 0 50%);
+  animation: eg-half-right 1500ms var(--eg-ease-out) 200ms both;
+}
+
+@keyframes eg-half-left {
+  0% {
+    transform: translate3d(-70%, 0, -260px) rotateY(38deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  70% {
+    transform: translate3d(-3%, 0, 0) rotateY(4deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes eg-half-right {
+  0% {
+    transform: translate3d(70%, 0, -260px) rotateY(-38deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  70% {
+    transform: translate3d(3%, 0, 0) rotateY(-4deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+/* The contact flash at the moment the two halves lock. */
+.eg-fallback__flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 60px 20px rgba(238, 165, 13, 0.75),
+    0 0 140px 60px rgba(8, 90, 22, 0.5);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+  animation: eg-flash 700ms ease-out 1250ms both;
+}
+
+@keyframes eg-flash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.4);
+  }
+}
+
+/* Wordmark wipes in behind a travelling gold sheen. */
+.eg-fallback__word {
+  position: absolute;
+  top: calc(50% + min(11vw, 92px));
+  width: min(56vw, 440px);
+  opacity: 0;
+  animation: eg-word-in 900ms var(--eg-ease-out) 1600ms both;
+}
+
+.eg-fallback__word img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: brightness(0) invert(1);
+}
+
+@keyframes eg-word-in {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    transform: translateZ(-60px);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: translateZ(0);
+  }
+}
+
+.eg-fallback__sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 42%,
+    rgba(238, 165, 13, 0.55) 50%,
+    transparent 58%
+  );
+  transform: translateX(-120%);
+  animation: eg-sheen 1100ms ease-in-out 1750ms both;
+}
+
+@keyframes eg-sheen {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* ==========================================================================
+   Site reveal — the page pushes forward out of depth as the intro departs.
+   Wrap your app in <div class="eg-site"> for this to apply.
+   ========================================================================== */
+.eg-site {
+  perspective: 1200px;
+}
+
+.eg-site__inner {
+  transform-origin: 50% 45%;
+  will-change: transform, opacity;
+}
+
+.eg-site[data-state='waiting'] .eg-site__inner {
+  opacity: 0;
+  transform: scale(0.94) translateZ(-160px);
+}
+
+.eg-site[data-state='entering'] .eg-site__inner {
+  animation: eg-site-enter 1000ms var(--eg-ease-out) forwards;
+}
+
+.eg-site[data-state='ready'] .eg-site__inner {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes eg-site-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateZ(-160px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+/* Header logo stays hidden until the flying ghost lands on it. */
+[data-intro-logo-target] {
+  transition: opacity 220ms ease;
+}
+
+[data-intro-logo-target][data-handoff='pending'] {
+  opacity: 0;
+}
+
+/* ==========================================================================
+   Accessibility — anyone who asks for less motion gets a plain cross-fade.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .eg-intro__plane,
+  .eg-intro[data-phase='shatter'] .eg-intro__plane,
+  .eg-glass__shard,
+  .eg-glass__flash,
+  .eg-fallback__half--l,
+  .eg-fallback__half--r,
+  .eg-fallback__flash,
+  .eg-fallback__word,
+  .eg-fallback__sheen,
+  .eg-site[data-state='entering'] .eg-site__inner {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    clip-path: none !important;
+  }
+
+  .eg-intro {
+    transition: opacity 300ms linear;
+  }
+
+  .eg-intro[data-phase='shatter'],
+  .eg-intro[data-phase='done'] {
+    opacity: 0;
+  }
+}
